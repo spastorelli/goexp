@@ -69,7 +69,7 @@ var (
 			ExpectedMessage: Message{
 				Header: MessageHeader{
 					MessageLength: 102, RequestId: 1234,
-					ResponseTo: 1, OpCode: OP_REPLY,
+					ResponseTo: 1, OpCode: OpReply,
 				},
 				Op: ReplyOp{CursorId: 0, StartingFrom: 0, NumReturned: 1},
 			},
@@ -79,7 +79,7 @@ var (
 			ExpectedMessage: Message{
 				Header: MessageHeader{
 					MessageLength: 168, RequestId: 1234,
-					ResponseTo: 1, OpCode: OP_REPLY,
+					ResponseTo: 1, OpCode: OpReply,
 				},
 				Op: ReplyOp{CursorId: 0, StartingFrom: 0, NumReturned: 2},
 			},

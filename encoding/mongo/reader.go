@@ -32,7 +32,7 @@ func NewMessageReader(b []byte) *MessageReader {
 }
 
 func (r *MessageReader) readCStringField(s *cstring) (n int, err error) {
-	if *s, err = r.byteReader.ReadBytes(CSTRING_DELIM); err != nil {
+	if *s, err = r.byteReader.ReadBytes(CStringDelim); err != nil {
 		return 0, err
 	}
 	n = len(*s)
@@ -61,23 +61,6 @@ func (r *MessageReader) readDocSliceField(docs []Document) (n int, err error) {
 			continue
 		}
 		n += cn
-	}
-	return
-}
-
-func (r *MessageReader) readIntField(fld interface{}) (n int, err error) {
-	if n = fieldSize(fld); n != 0 {
-		fb := make([]byte, n)
-		if _, err = r.byteReader.Read(fb); err != nil {
-			return 0, err
-		}
-		switch fldData := fld.(type) {
-		case *int32:
-			*fldData = int32(binary.LittleEndian.Uint32(fb))
-		case *int64:
-			*fldData = int64(binary.LittleEndian.Uint64(fb))
-		}
-		r.i += int64(n)
 	}
 	return
 }
@@ -123,6 +106,33 @@ func (r *MessageReader) readFields(op interface{}) (n int, err error) {
 	return
 }
 
+func (r *MessageReader) readHeader(header *MessageHeader) (n int, err error) {
+	if err = binary.Read(r.byteReader, binary.LittleEndian, header); err != nil {
+		fmt.Println("Error while reading Message header:", err)
+		return n, err
+	}
+	n += binary.Size(header)
+	r.i += int64(n)
+	return
+}
+
+func (r *MessageReader) readIntField(fld interface{}) (n int, err error) {
+	if n = fieldSize(fld); n != 0 {
+		fb := make([]byte, n)
+		if _, err = r.byteReader.Read(fb); err != nil {
+			return 0, err
+		}
+		switch fldData := fld.(type) {
+		case *int32:
+			*fldData = int32(binary.LittleEndian.Uint32(fb))
+		case *int64:
+			*fldData = int64(binary.LittleEndian.Uint64(fb))
+		}
+		r.i += int64(n)
+	}
+	return
+}
+
 func (r *MessageReader) Read(msg *Message) (n int, err error) {
 	if len(r.b) == 0 {
 		return 0, nil
@@ -134,11 +144,11 @@ func (r *MessageReader) Read(msg *Message) (n int, err error) {
 
 	var n1 int
 	switch msg.Header.OpCode {
-	case OP_REPLY:
+	case OpReply:
 		reply := ReplyOp{}
 		n1, err = r.readFields(&reply)
 		msg.Op = reply
-	case OP_QUERY:
+	case OpQuery:
 		query := QueryOp{}
 		n1, err = r.readFields(&query)
 		msg.Op = query
@@ -148,15 +158,5 @@ func (r *MessageReader) Read(msg *Message) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
-	return
-}
-
-func (r *MessageReader) readHeader(header *MessageHeader) (n int, err error) {
-	if err = binary.Read(r.byteReader, binary.LittleEndian, header); err != nil {
-		fmt.Println("Error while reading Message header:", err)
-		return n, err
-	}
-	n += binary.Size(header)
-	r.i += int64(n)
 	return
 }

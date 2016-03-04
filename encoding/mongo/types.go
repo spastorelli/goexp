@@ -4,15 +4,15 @@ import "fmt"
 
 // The wire protocol operation codes.
 const (
-	OP_REPLY        = 1
-	OP_MSG          = 1000 // Deprecated
-	OP_UPDATE       = 2001
-	OP_INSERT       = 2002
-	RESERVED        = 2003
-	OP_QUERY        = 2004
-	OP_GET_MORE     = 2005
-	OP_DELETE       = 2006
-	OP_KILL_CURSORS = 2007
+	OpReply       = 1
+	OpMsg         = 1000 // deprecated
+	OpUpdate      = 2001
+	OpInsert      = 2002
+	Reserved      = 2003
+	OpQuery       = 2004
+	OpGetMore     = 2005
+	OpDelete      = 2006
+	OpKillCursors = 2007
 )
 
 type UnmarshalDocFunc func([]byte, interface{}) error
@@ -32,7 +32,7 @@ func (doc Document) String() string {
 	return fmt.Sprintf(f, doc.Size)
 }
 
-const CSTRING_DELIM = 0x00
+const CStringDelim = 0x00
 
 type cstring []byte
 
