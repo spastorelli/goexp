@@ -76,7 +76,7 @@ type ReplyOp struct {
 	CursorId     int64
 	StartingFrom int32
 	NumReturned  int32
-    Docs []Document `size:"NumReturned"`
+	Docs         []Document `size:"NumReturned"`
 }
 
 func (r ReplyOp) String() string {
@@ -93,11 +93,11 @@ func (r ReplyOp) String() string {
 
 // QueryOp defines the structure of a query operation (OpCode: OP_QUERY).
 type QueryOp struct {
-	Flags          int32      // The bit vector defining the options for the query operation.
-	CollectionName cstring    // The full collection name e.g "db.collection".
-	NumToSkip      int32      // The number of document to skip.
-	NumToReturn    int32      // The numer of document to return in the first OP_REPLY batch.
-	Doc            Document   // The query object document.
+	Flags          int32    // The bit vector defining the options for the query operation.
+	CollectionName cstring  // The full collection name e.g "db.collection".
+	NumToSkip      int32    // The number of document to skip.
+	NumToReturn    int32    // The numer of document to return in the first OP_REPLY batch.
+	Doc            Document // The query object document.
 	Projections    Document // The field projections document.
 }
 
