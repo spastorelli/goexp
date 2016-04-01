@@ -66,11 +66,11 @@ func (r *MessageReader) readDocSliceField(docs []Document) (n int, err error) {
 }
 
 func (r *MessageReader) readFields(op interface{}) (n int, err error) {
-	var nRead int
 	st := reflect.ValueOf(op).Elem()
 	l := st.NumField()
 
 	for i := 0; i < l; i++ {
+		nRead := 0
 		f := st.Field(i)
 		fInterface := f.Interface()
 		switch fValue := fInterface.(type) {
@@ -86,8 +86,19 @@ func (r *MessageReader) readFields(op interface{}) (n int, err error) {
 					nRead, err = r.readDocSliceField(fValue)
 					f.Set(reflect.ValueOf(fValue))
 				}
+			} else {
+				var cn int
+				// TODO(spastorelli): Choose a better initial capacity value.
+				fValue := make([]Document, 0, 20)
+
+				// Read the docs until it reaches the end of the message bytes.
+				for i := 0; r.byteReader.Len() != 0; i++ {
+					fValue = append(fValue, Document{})
+					cn, err = r.readDocField(&fValue[i])
+					nRead += cn
+				}
+				f.Set(reflect.ValueOf(fValue))
 			}
-			// TODO(spastorelli): Implement logic when the Document slice length is not provided by another field.
 		case cstring:
 			nRead, err = r.readCStringField(&fValue)
 			f.Set(reflect.ValueOf(fValue))
