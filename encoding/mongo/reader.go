@@ -31,7 +31,7 @@ func NewMessageReader(b []byte) *MessageReader {
 	}
 }
 
-func (r *MessageReader) readCStringField(s *cstring) (n int, err error) {
+func (r *MessageReader) readCString(s *cstring) (n int, err error) {
 	if *s, err = r.byteReader.ReadBytes(CStringDelim); err != nil {
 		return 0, err
 	}
@@ -40,7 +40,7 @@ func (r *MessageReader) readCStringField(s *cstring) (n int, err error) {
 	return
 }
 
-func (r *MessageReader) readDocField(d *Document) (n int, err error) {
+func (r *MessageReader) readDocument(d *Document) (n int, err error) {
 	offset := r.i + int64(fieldSize(d.Size))
 	// Read the document length but do not move the reader cursor.
 	d.Size = int32(binary.LittleEndian.Uint32(r.b[r.i:offset]))
@@ -53,10 +53,10 @@ func (r *MessageReader) readDocField(d *Document) (n int, err error) {
 	return
 }
 
-func (r *MessageReader) readDocSliceField(docs []Document) (n int, err error) {
+func (r *MessageReader) readDocuments(docs []Document) (n int, err error) {
 	var cn int
 	for i := range docs {
-		if cn, err = r.readDocField(&docs[i]); err != nil {
+		if cn, err = r.readDocument(&docs[i]); err != nil {
 			fmt.Println("Error while reading document data:", err)
 			continue
 		}
@@ -65,8 +65,8 @@ func (r *MessageReader) readDocSliceField(docs []Document) (n int, err error) {
 	return
 }
 
-func (r *MessageReader) readFields(op interface{}) (n int, err error) {
-	st := reflect.ValueOf(op).Elem()
+func (r *MessageReader) readData(data interface{}) (n int, err error) {
+	st := reflect.ValueOf(data).Elem()
 	l := st.NumField()
 
 	for i := 0; i < l; i++ {
@@ -75,15 +75,15 @@ func (r *MessageReader) readFields(op interface{}) (n int, err error) {
 		fInterface := f.Interface()
 		switch fValue := fInterface.(type) {
 		case Document:
-			nRead, err = r.readDocField(&fValue)
+			nRead, err = r.readDocument(&fValue)
 			f.Set(reflect.ValueOf(fValue))
 		case []Document:
 			// Get the associated size struct field tag if present.
-			if sTag := reflect.TypeOf(op).Elem().Field(i).Tag.Get("size"); sTag != "" {
+			if sTag := reflect.TypeOf(data).Elem().Field(i).Tag.Get("size"); sTag != "" {
 				sFld := st.FieldByName(sTag).Interface()
 				if size, ok := sFld.(int32); ok {
 					fValue = make([]Document, size)
-					nRead, err = r.readDocSliceField(fValue)
+					nRead, err = r.readDocuments(fValue)
 					f.Set(reflect.ValueOf(fValue))
 				}
 			} else {
@@ -94,19 +94,19 @@ func (r *MessageReader) readFields(op interface{}) (n int, err error) {
 				// Read the docs until it reaches the end of the message bytes.
 				for i := 0; r.byteReader.Len() != 0; i++ {
 					fValue = append(fValue, Document{})
-					cn, err = r.readDocField(&fValue[i])
+					cn, err = r.readDocument(&fValue[i])
 					nRead += cn
 				}
 				f.Set(reflect.ValueOf(fValue))
 			}
 		case cstring:
-			nRead, err = r.readCStringField(&fValue)
+			nRead, err = r.readCString(&fValue)
 			f.Set(reflect.ValueOf(fValue))
 		case int32:
-			nRead, err = r.readIntField(&fValue)
+			nRead, err = r.readInt(&fValue)
 			f.Set(reflect.ValueOf(fValue))
 		case int64:
-			nRead, err = r.readIntField(&fValue)
+			nRead, err = r.readInt(&fValue)
 			f.Set(reflect.ValueOf(fValue))
 		}
 		if err != nil {
@@ -117,17 +117,7 @@ func (r *MessageReader) readFields(op interface{}) (n int, err error) {
 	return
 }
 
-func (r *MessageReader) readHeader(header *MessageHeader) (n int, err error) {
-	if err = binary.Read(r.byteReader, binary.LittleEndian, header); err != nil {
-		fmt.Println("Error while reading Message header:", err)
-		return n, err
-	}
-	n += binary.Size(header)
-	r.i += int64(n)
-	return
-}
-
-func (r *MessageReader) readIntField(fld interface{}) (n int, err error) {
+func (r *MessageReader) readInt(fld interface{}) (n int, err error) {
 	if n = fieldSize(fld); n != 0 {
 		fb := make([]byte, n)
 		if _, err = r.byteReader.Read(fb); err != nil {
@@ -149,7 +139,7 @@ func (r *MessageReader) Read(msg *Message) (n int, err error) {
 		return 0, nil
 	}
 
-	if n, err = r.readFields(&msg.Header); err != nil {
+	if n, err = r.readData(&msg.Header); err != nil {
 		return n, err
 	}
 
@@ -157,11 +147,11 @@ func (r *MessageReader) Read(msg *Message) (n int, err error) {
 	switch msg.Header.OpCode {
 	case OpReply:
 		reply := ReplyOp{}
-		n1, err = r.readFields(&reply)
+		n1, err = r.readData(&reply)
 		msg.Op = reply
 	case OpQuery:
 		query := QueryOp{}
-		n1, err = r.readFields(&query)
+		n1, err = r.readData(&query)
 		msg.Op = query
 	}
 
