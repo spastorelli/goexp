@@ -1,5 +1,9 @@
 package mongo
 
+// Types definitions of the operation messages that are used in the
+// MongoDB Wire Protocol. More detailed information:
+// https://docs.mongodb.org/manual/reference/mongodb-wire-protocol/#messages-types-and-formats
+
 import "fmt"
 
 // The wire protocol operation codes.
@@ -52,7 +56,7 @@ func (m Message) String() string {
 	return fmt.Sprintf(f, m.Header, m.Op)
 }
 
-// MessageHeader defines the header of a MongoDB wire protocol messages.
+// MessageHeader defines the header of a MongoDB wire protocol message.
 type MessageHeader struct {
 	MessageLength int32 // The total size of the message in bytes, including these 4 bytes.
 	RequestId     int32 // The unique identifier of the message.
@@ -70,13 +74,15 @@ func (h MessageHeader) String() string {
 	return fmt.Sprintf(f, h.MessageLength, h.RequestId, h.ResponseTo, h.OpCode)
 }
 
-// ReplyOp defines the structure of a reply operation (OpCode: OP_REPLY).
+// ReplyOp defines the structure of a reply operation message (OpCode: OP_REPLY).
+// A reply operation message is sent by the database in response to a query or get_more
+// operation message.
 type ReplyOp struct {
-	Flags        int32
-	CursorId     int64
-	StartingFrom int32
-	NumReturned  int32
-	Docs         []Document `size:"NumReturned"`
+	Flags        int32      // The bit vector used to specify the operation flags.
+	CursorId     int64      // The cursor ID for subsequents OP_GET_MORE operations.
+	StartingFrom int32      // The position in the cursor the reply operation is starting.
+	NumReturned  int32      // The number of documents in the reply.
+	Docs         []Document `size:"NumReturned"` // The documents of the reply operation.
 }
 
 func (r ReplyOp) String() string {
@@ -91,12 +97,13 @@ func (r ReplyOp) String() string {
 	return fmt.Sprintf(f, r.Flags, r.CursorId, r.StartingFrom, r.NumReturned, r.Docs)
 }
 
-// QueryOp defines the structure of a query operation (OpCode: OP_QUERY).
+// QueryOp defines the structure of a query operation message (OpCode: OP_QUERY).
+// A query operation message is used to query the database for documents in a collection.
 type QueryOp struct {
-	Flags          int32    // The bit vector defining the options for the query operation.
+	Flags          int32    // The bit vector used to specify the operation flags.
 	CollectionName cstring  // The full collection name e.g "db.collection".
-	NumToSkip      int32    // The number of document to skip.
-	NumToReturn    int32    // The numer of document to return in the first OP_REPLY batch.
+	NumToSkip      int32    // The number of documents to skip.
+	NumToReturn    int32    // The numer of documents to return in the first OP_REPLY batch.
 	Doc            Document // The query object document.
 	Projections    Document // The field projections document.
 }
@@ -114,30 +121,39 @@ func (q QueryOp) String() string {
 	return fmt.Sprintf(f, q.Flags, q.CollectionName, q.NumToSkip, q.NumToReturn, q.Doc, q.Projections)
 }
 
+// UpdateOp defines the structure of an update operation message (OpCode: OP_UPDATE).
+// An update operation message is used to update a document in a collection.
 type UpdateOp struct {
 	_              int32    // Reserved for future use.
 	CollectionName cstring  // The full collection name e.g "db.collection".
-	Flags          int32    // The bit vector defining the options for the update operation.
+	Flags          int32    // The bit vector used to specify the operation flags.
+	SelectorDoc    Document // The query to select the document(s) to update.
 	Doc            Document // The document holding the specification of the update to perform.
-	SelectorDoc    Document // The query to select the documents to update.
 }
 
+// InsertOp defines the structure of an insert operation message (OpCode: OP_INSERT).
+// An insert operation message is used to insert one or more documents in a collection.
 type InsertOp struct {
-	Flags          int32      // The bit vector defining the options for the insert operation.
+	Flags          int32      // The bit vector used to specify the operation flags.
 	CollectionName cstring    // The full collection name e.g "db.collection".
-	Docs           []Document // The documents to insert.
+	Docs           []Document // The document(s) to insert.
 }
 
+// GetMoreOp defines the structure of a get_more operation message (OpCode: OP_GET_MORE).
+// A get_more operation message is used to query the database for more documents in a collection
+// following a related query operation.
 type GetMoreOp struct {
 	_              int32   // Reserved for future use.
 	CollectionName cstring // The full collection name e.g "db.collection".
-	numberToReturn int32   // The numer of document to return in this batch.
-	CursorID       int64   // The identifier of the cursor from the OP_REPLY operation.
+	NumToReturn    int32   // The number of documents to return in this OP_REPLY batch.
+	CursorID       int64   // The cursor ID from the related OP_REPLY operation.
 }
 
+// DeleteOp defines the structure of a delete operation message (OpCode: OP_DELETE).
+// A delete operation message is used to delete one or more documents from a collection.
 type DeleteOp struct {
 	_              int32    // Reserved for future use.
 	CollectionName cstring  // The full collection name e.g "db.collection".
-	Flags          int32    // The bit vector defining the options for the delete operation.
-	SelectorDoc    Document // The query to select the documents to delete.
+	Flags          int32    // The bit vector used to specify the operation flags.
+	SelectorDoc    Document // The query to select the document(s) to delete.
 }
