@@ -3,7 +3,8 @@ package mongo
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"io"
+	"log"
 	"reflect"
 )
 
@@ -57,8 +58,12 @@ func (r *MessageReader) readDocuments(docs []Document) (n int, err error) {
 	var cn int
 	for i := range docs {
 		if cn, err = r.readDocument(&docs[i]); err != nil {
-			fmt.Println("Error while reading document data:", err)
-			continue
+			if err == io.EOF {
+				return
+			} else {
+				log.Println("Error while reading document data:", err)
+				continue
+			}
 		}
 		n += cn
 	}
@@ -81,7 +86,7 @@ func (r *MessageReader) readData(data interface{}) (n int, err error) {
 			// Get the associated size struct field tag if present.
 			if sTag := reflect.TypeOf(data).Elem().Field(i).Tag.Get("size"); sTag != "" {
 				sFld := st.FieldByName(sTag).Interface()
-				if size, ok := sFld.(int32); ok {
+				if size, ok := sFld.(int32); ok && size > 0 {
 					fValue = make([]Document, size)
 					nRead, err = r.readDocuments(fValue)
 					f.Set(reflect.ValueOf(fValue))
